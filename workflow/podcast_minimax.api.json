@@ -46,7 +46,7 @@
     "inputs": {
       "clip": ["2", 0],
       "vae": ["3", 0],
-      "prompt": "A presenter seated at a broadcast desk, speaking directly to the camera. Locked-off medium close-up. The face stays the same. Both hands rest on the desk. The presenter remains seated.",
+      "prompt": "A presenter seated at a broadcast desk, speaking directly to the camera. Locked-off medium close-up. The face stays the same. Both hands rest on the desk. The presenter remains seated. The presenter says this line once: Comfy-ui, LTX, and Wan are amazing.",
       "width": 768,
       "height": 768,
       "length": 124,

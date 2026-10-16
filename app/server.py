@@ -42,25 +42,41 @@ WAN_FULL = ROOT / "workflow" / "podcast_wan_full.api.json"
 LTX_WORKFLOW = ROOT / "workflow" / "podcast_ltx.api.json"
 LTX_FULL = ROOT / "workflow" / "podcast_ltx_full.api.json"
 MINIMAX = ROOT / "workflow" / "podcast_minimax.api.json"
+LTX_PERFORMANCE = (
+    "A presenter seated at a broadcast desk, speaking directly to the camera. "
+    "Locked-off medium close-up. Calm, confident expression. Natural mouth shapes that follow the speech. "
+    "Small head movement. Both hands rest on the desk. The presenter remains seated. "
+    "Realistic skin, even broadcast lighting, sharp focus, clean background."
+)
+WAN_PERFORMANCE = (
+    "A presenter seated at a broadcast desk, speaking directly to the camera. "
+    "Locked-off medium close-up. Calm, confident expression. Natural mouth shapes. "
+    "Small head movement. Both hands rest on the desk. The presenter remains seated. "
+    "Realistic skin, even broadcast lighting, sharp focus, clean background."
+)
 VIDEO_MODELS = {
     "ltx-q3": {
         "file": LTX_WORKFLOW,
         "unet": "LTX-2.5-Distilled-Q3_K_M.gguf",
+        "performance": LTX_PERFORMANCE,
         "log": "Queued. LTX 2.5 Distilled Q3, the 12 GB GGUF. The full LTX checkpoint is not loaded.",
     },
     "ltx": {
         "file": LTX_FULL,
         "unet": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "performance": LTX_PERFORMANCE,
         "log": "Queued. LTX 2.5 Distilled, the full checkpoint. It needs a larger card than the Q3 GGUF.",
     },
     "wan": {
         "file": WORKFLOW,
         "unet": "wan2.2_s2v_14B_fp8_scaled.safetensors",
+        "performance": WAN_PERFORMANCE,
         "log": "Queued. Wan 2.2 speech fp8, 4 steps, no LightX2V LoRA.",
     },
     "wan-full": {
         "file": WAN_FULL,
         "unet": "wan2.2_s2v_14B_bf16.safetensors",
+        "performance": WAN_PERFORMANCE,
         "log": "Queued. Wan 2.2 speech bf16, 20 steps, no LightX2V LoRA. It needs a larger card than the fp8 pass.",
     },
     "minimax": {
@@ -94,6 +110,14 @@ def take_seconds(model: str, raw) -> int:
 
 def word_cap(seconds: int) -> int:
     return seconds * 4
+
+
+def with_spoken_line(motion: str, script: str) -> str:
+    line = script.strip().rstrip(".")
+    text = motion.strip()
+    if text and not text.endswith("."):
+        text += "."
+    return f"{text} The presenter says this line once: {line}."
 
 
 def ltx_frames(seconds: int) -> int:
@@ -312,8 +336,8 @@ def _run(
         else:
             workflow.set_input("25", "text", script)
             workflow.set_input("24", "speaker_name", voice)
-            if prompt:
-                workflow.set_input("8", "text", prompt)
+            motion = prompt or spec["performance"]
+            workflow.set_input("8", "text", with_spoken_line(motion, script))
         if model in {"ltx-q3", "ltx"}:
             frames = ltx_frames(seconds)
             workflow.set_input("13", "length", frames)
