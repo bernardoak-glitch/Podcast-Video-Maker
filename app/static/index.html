@@ -324,11 +324,13 @@
             <label for="model">Video model</label>
             <select id="model">
               <option value="ltx-q3" selected>LTX 2.5 Distilled Q3</option>
+              <option value="ltx">LTX 2.5 full</option>
               <option value="wan">Wan 2.2 speech</option>
+              <option value="wan-full">Wan 2.2 full</option>
             </select>
           </div>
         </div>
-        <p class="hint">Q3 is the 12 GB GGUF. The full LTX checkpoint is left out. Wan stays available for a smaller card.</p>
+        <p class="hint">Q3 and fp8 Wan are the lighter choices. Full LTX and Wan bf16 are listed for a larger card.</p>
       </section>
 
       <section class="panel">

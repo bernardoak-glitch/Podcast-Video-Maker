@@ -6,5 +6,6 @@ outputs/
 .env
 .secrets/
 *.mp4
+!examples/*.mp4
 *.wav
 *.flac

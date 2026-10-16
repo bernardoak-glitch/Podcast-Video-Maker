@@ -1,6 +1,6 @@
 # Podcast-Video-Maker-Workflow
 
-A local presenter: paste a short script, choose a portrait, and get one seated talking-head clip.
+A local presenter: paste a short script, choose a portrait, and get one seated talking-head clip. An example, Blue Hour Desk, is in `examples/`.
 
 The clip is 768×768, 16 fps, and about 5 seconds (one Wan 2.2 S2V chunk of 77 frames). About 12 words fills it. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine.
 
@@ -73,7 +73,7 @@ job = client.submit(workflow)
 
 `app/server.py` sets `COMFY_BASE_URL` to `http://127.0.0.1:8189` when that variable is empty. Point the SDK at the proxy, not at port 8188.
 
-The video model list has two open-weight choices. LTX 2.5 Distilled Q3 loads `LTX-2.5-Distilled-Q3_K_M.gguf` through `workflow/podcast_ltx.api.json`. That is the 12 GB GGUF. The graph does not load the full LTX 22B checkpoint. The text encoder is `gemma412bWithProjLtx25_v10.safetensors` on the GPU, with the LTX 2.5 video and audio VAEs. Comfy unloads that encoder before the video sample. Wan 2.2 speech stays in the list for a smaller card and uses `workflow/podcast_short.api.json`. Node 25 is the script, node 24 is the Kokoro voice, and node 7 is the portrait in both graphs.
+The video model list has four open-weight choices. LTX 2.5 Distilled Q3 loads `LTX-2.5-Distilled-Q3_K_M.gguf` through `workflow/podcast_ltx.api.json`. That is the 12 GB GGUF, and it is the default. LTX 2.5 full loads `ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors` and `gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors` through `workflow/podcast_ltx_full.api.json` for a larger card. The Q3 text encoder is `gemma412bWithProjLtx25_v10.safetensors` on the GPU, with the LTX 2.5 video and audio VAEs. Comfy unloads that encoder before the video sample. Wan 2.2 speech uses the fp8 model and the LightX2V 4-step LoRA in `workflow/podcast_short.api.json`. Wan 2.2 full uses `wan2.2_s2v_14B_bf16.safetensors` in `workflow/podcast_wan_full.api.json`, 20 steps at CFG 6, with no LoRA. Node 25 is the script, node 24 is the Kokoro voice, and node 7 is the portrait in every graph.
 
 The finished file is written under `outputs/` and played on the page. From there, YouTube can receive the file through the YouTube Data API with your own Google login. The redirect to register on that client is `http://127.0.0.1:8765/api/publish/youtube/callback`. The client id and secret stay in `.secrets/` on this PC. Rumble and Spotify have no public upload API for a personal channel, so those buttons open Rumble Studio and Spotify for Creators. Show the file opens the output folder so you can drop the mp4 onto those pages. A new YouTube upload is private until you change it. ComfyUI also saves a copy under its own `output/video/` folder with the prefix `Podcast-Video-Maker-Workflow`.
 

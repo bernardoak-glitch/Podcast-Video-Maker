@@ -38,17 +38,29 @@ import publish
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / "workflow" / "podcast_short.api.json"
+WAN_FULL = ROOT / "workflow" / "podcast_wan_full.api.json"
 LTX_WORKFLOW = ROOT / "workflow" / "podcast_ltx.api.json"
+LTX_FULL = ROOT / "workflow" / "podcast_ltx_full.api.json"
 VIDEO_MODELS = {
     "ltx-q3": {
         "file": LTX_WORKFLOW,
         "unet": "LTX-2.5-Distilled-Q3_K_M.gguf",
         "log": "Queued. LTX 2.5 Distilled Q3, the 12 GB GGUF. The full LTX checkpoint is not loaded.",
     },
+    "ltx": {
+        "file": LTX_FULL,
+        "unet": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "log": "Queued. LTX 2.5 Distilled, the full checkpoint. It needs a larger card than the Q3 GGUF.",
+    },
     "wan": {
         "file": WORKFLOW,
         "unet": "wan2.2_s2v_14B_fp8_scaled.safetensors",
         "log": "Queued on the local proxy. A 4-step Wan chunk is about 8 minutes on a 16 GB card.",
+    },
+    "wan-full": {
+        "file": WAN_FULL,
+        "unet": "wan2.2_s2v_14B_bf16.safetensors",
+        "log": "Queued. Wan 2.2 speech bf16, 20 steps, no LightX2V LoRA. It needs a larger card than the fp8 pass.",
     },
 }
 PRESENTER = ROOT / "workflow" / "presenter_still.api.json"
@@ -545,7 +557,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         model = str(payload.get("model") or "ltx-q3")
         if model not in VIDEO_MODELS:
-            self._json(400, {"error": "Pick LTX 2.5 Distilled Q3 or Wan 2.2."})
+            self._json(400, {"error": "Pick LTX 2.5 Distilled Q3, LTX 2.5 full, Wan 2.2 speech, or Wan 2.2 full."})
             return
         if voice not in VOICES:
             self._json(400, {"error": "Pick Emma, Alice, Isabella, or Lily."})
