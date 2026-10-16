@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Podcast Video Maker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070708;
+      --panel: #101113;
+      --panel-2: #16171a;
+      --line: rgba(255, 255, 255, 0.1);
+      --line-strong: rgba(255, 255, 255, 0.22);
+      --text: #f5f5f4;
+      --muted: #9a9a96;
+      --accent: #f4f4f1;
+      --ink: #111111;
+      --bad: #ffb4a8;
+      --ok: #c8f5c4;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      height: 100dvh;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      padding-bottom: 48px;
+      font: 13px/1.25 Bahnschrift, "Segoe UI Variable", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(900px 420px at 80% -10%, rgba(255, 255, 255, 0.06), transparent 60%),
+        var(--bg);
+      color: var(--text);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 7, 8, 0.96);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      display: grid;
+      place-items: center;
+      font-weight: 650;
+      letter-spacing: -0.04em;
+      background: linear-gradient(180deg, #2a2a2c, #0e0e10);
+    }
+    .brand strong { display: block; font-size: 0.95rem; font-weight: 650; letter-spacing: -0.03em; }
+    .brand span, .kicker, .hint { color: var(--muted); }
+    .brand span { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .status {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .status.busy { color: var(--text); border-color: var(--line-strong); }
+    .status.ok { color: var(--ok); border-color: rgba(200, 245, 196, 0.35); }
+    .status.bad { color: var(--bad); border-color: rgba(255, 180, 168, 0.4); }
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) minmax(0, 0.92fr);
+      gap: 8px;
+      padding: 8px 12px;
+      align-items: stretch;
+    }
+    footer {
+      text-align: center;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 7px 16px;
+      border-top: 1px solid #f5f5f4;
+      background: #000;
+    }
+    footer p {
+      margin: 0;
+      color: #f5f5f4;
+      font-size: 0.78rem;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+    footer strong { color: #fff; font-weight: 700; }
+    br.phone { display: none; }
+    form {
+      grid-column: 1 / 3;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+      grid-template-rows: minmax(0, 1.04fr) minmax(0, 0.96fr);
+      gap: 8px;
+    }
+    form > section:nth-child(1) { grid-column: 1; grid-row: 1; }
+    form > section:nth-child(2) { grid-column: 1; grid-row: 2; }
+    form > section:nth-child(3) { grid-column: 2; grid-row: 1; }
+    form > section:nth-child(4) { grid-column: 2; grid-row: 2; }
+    .panel {
+      min-height: 0;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .kicker {
+      margin: 0 0 6px;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    label { display: block; margin: 6px 0 2px; font-size: 0.78rem; font-weight: 600; }
+    .panel label:first-of-type { margin-top: 0; }
+    textarea, select, input[type="file"], input[type="text"], input[type="password"], input[type="number"] {
+      width: 100%;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 5px 8px;
+      font: inherit;
+    }
+    textarea { min-height: 0; resize: none; }
+    #script { flex: 1; }
+    select {
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      padding-right: 32px;
+    }
+    input[type="file"]::file-selector-button {
+      margin-right: 12px;
+      border: 1px solid var(--line-strong);
+      background: transparent;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .topic-line { display: flex; gap: 8px; align-items: center; }
+    .topic-line input { flex: 1; }
+    .topic-line button { margin: 0; white-space: nowrap; }
+    .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 0.75rem; }
+    .over { color: var(--bad); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+    .look { grid-template-columns: 1fr 1fr 1fr; }
+    button {
+      background: var(--accent);
+      color: var(--ink);
+      border: 0;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+    }
+    button:disabled { opacity: 0.45; cursor: wait; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .actions button { margin: 0; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 3px; }
+    .pair button { width: 100%; margin: 0; padding: 5px 8px; }
+    #go { width: 100%; margin-top: 3px; padding: 5px 10px; }
+    #move[aria-pressed="true"] { background: var(--accent); color: var(--ink); border-color: transparent; }
+    form > section:nth-child(4) { padding: 6px 8px; }
+    form > section:nth-child(4) label { margin: 3px 0 1px; }
+    form > section:nth-child(4) .kicker { margin-bottom: 3px; }
+    .sets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .set {
+      margin: 0;
+      padding: 4px 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-align: left;
+    }
+    .set.selected { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+    .swatch { display: block; height: 6px; border-radius: 3px; margin-bottom: 1px; }
+    .photo { background: linear-gradient(160deg, #3a342c, #17140f 60%); }
+    .night { background: linear-gradient(#0c1224, #243056 78%, #100e12); }
+    .warm { background: linear-gradient(#603e28, #c48b5a 78%, #40281a); }
+    .news { background: linear-gradient(#243246, #8ea0b4 78%, #e6e8ea); }
+    .grey { background: linear-gradient(#c8c8ca, #6e6e72 78%, #222226); }
+    .stage-col {
+      grid-column: 3;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stage-col > section:first-child { flex: 1; min-height: 0; }
+    .monitor {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 30%),
+        #050506;
+      border: 1px solid var(--line);
+      display: grid;
+    }
+    .monitor:not(:has(img:not([hidden]))):not(:has(video:not([hidden])))::before {
+      content: "Start frame";
+      margin: auto;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+    .monitor.live:not(:has(img:not([hidden]))):not(:has(video:not([hidden])))::before {
+      content: "Rendering";
+    }
+    #still, video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+    video { position: absolute; inset: 0; }
+    #log {
+      margin: 6px 0 0;
+      max-height: 2.6em;
+      overflow: hidden;
+      white-space: pre-wrap;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    #blurb { height: 2.4em; }
+    #publish { overflow: auto; }
+    .hint { margin: 4px 0 0; color: var(--muted); font-size: 0.72rem; }
+    .error { color: var(--bad); }
+    details summary { cursor: pointer; color: var(--muted); margin-top: 4px; }
+    details[open] summary { margin-bottom: 2px; }
+    @media (max-width: 860px) {
+      body {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto;
+        padding-bottom: 48px;
+        font-size: 13px;
+      }
+      .workspace { display: block; padding: 10px; }
+      form { display: flex; flex-direction: column; gap: 8px; }
+      .stage-col { display: flex; margin-top: 8px; }
+      .panel { overflow: visible; }
+      .monitor { min-height: 200px; aspect-ratio: 16 / 10; flex: none; }
+      .look { grid-template-columns: 1fr 1fr; }
+      br.phone { display: block; }
+      footer p { font-size: 0.68rem; letter-spacing: 0.03em; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="mark">Pv</div>
+      <div>
+        <strong>Podcast Video Maker</strong>
+        <span>Local studio</span>
+      </div>
+    </div>
+    <div id="status" class="status">Ready</div>
+  </header>
+  <div class="workspace">
+    <form id="form">
+      <section class="panel">
+        <p class="kicker">01 · Line</p>
+        <label for="topic">Topic</label>
+        <div class="topic-line">
+          <input id="topic" type="text" maxlength="160" placeholder="news in ukraine war today">
+          <button id="find" class="secondary" type="button">Write the line</button>
+        </div>
+        <p class="hint">Local headlines, then one line written on this PC. 20 words at most.</p>
+        <label for="script">Script</label>
+        <textarea id="script" maxlength="400">Good evening. Here is a short update from the studio.</textarea>
+        <div class="meta"><span>About 12 words fills the take.</span><span id="count"></span></div>
+      </section>
+
+      <section class="panel">
+        <p class="kicker">02 · Voice and model</p>
+        <div class="split">
+          <div>
+            <label for="voice">Voice</label>
+            <select id="voice">
+              <option value="bf_emma">Emma</option>
+              <option value="bf_alice">Alice</option>
+              <option value="bf_isabella">Isabella</option>
+              <option value="bf_lily">Lily</option>
+              <option value="bm_daniel">Daniel</option>
+              <option value="bm_george">George</option>
+              <option value="bm_lewis">Lewis</option>
+              <option value="bm_fable">Fable</option>
+            </select>
+          </div>
+          <div>
+            <label for="model">Video model</label>
+            <select id="model">
+              <option value="ltx-q3" selected>LTX 2.5 Distilled Q3</option>
+              <option value="wan">Wan 2.2 speech</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Q3 is the 12 GB GGUF. The full LTX checkpoint is left out. Wan stays available for a smaller card.</p>
+      </section>
+
+      <section class="panel">
+        <p class="kicker">03 · Presenter</p>
+        <div class="split look">
+          <div>
+            <label for="role">Role</label>
+            <select id="role">
+              <option value="news">News anchor</option>
+              <option value="podcast">Podcast host</option>
+              <option value="interview">Interviewer</option>
+              <option value="documentary">Documentary</option>
+              <option value="late">Late-night host</option>
+            </select>
+          </div>
+          <div>
+            <label for="person">Person</label>
+            <select id="person">
+              <option value="woman">Woman</option>
+              <option value="man">Man</option>
+            </select>
+          </div>
+          <div>
+            <label for="age">Age</label>
+            <input id="age" type="number" min="18" max="90" value="30" inputmode="numeric">
+          </div>
+          <div>
+            <label for="hair">Hair colour</label>
+            <select id="hair">
+              <option value="black">Black</option>
+              <option value="dark-brown" selected>Dark brown</option>
+              <option value="light-brown">Light brown</option>
+              <option value="blonde">Blonde</option>
+              <option value="auburn">Auburn</option>
+              <option value="grey">Grey</option>
+            </select>
+          </div>
+          <div>
+            <label for="style">Hair style</label>
+            <select id="style">
+              <option value="short">Short</option>
+              <option value="bob">Bob</option>
+              <option value="waves" selected>Waves</option>
+              <option value="long">Long</option>
+              <option value="curls">Curls</option>
+              <option value="tied">Tied back</option>
+              <option value="bun">Low bun</option>
+              <option value="fringe">Fringe</option>
+            </select>
+          </div>
+          <div>
+            <label for="eyes">Eye colour</label>
+            <select id="eyes">
+              <option value="brown" selected>Brown</option>
+              <option value="blue">Blue</option>
+              <option value="green">Green</option>
+              <option value="hazel">Hazel</option>
+              <option value="grey">Grey</option>
+            </select>
+          </div>
+          <div>
+            <label for="wardrobe">Clothes</label>
+            <select id="wardrobe">
+              <option value="suit" selected>Suit</option>
+              <option value="blouse">Blouse and jacket</option>
+              <option value="knit">Fine knit</option>
+              <option value="dress">Dress</option>
+              <option value="shirt">Shirt</option>
+              <option value="coat">Long coat</option>
+              <option value="blazer">Blazer</option>
+              <option value="turtleneck">Turtleneck</option>
+            </select>
+          </div>
+          <div>
+            <label for="glasses">Glasses</label>
+            <select id="glasses">
+              <option value="none">None</option>
+              <option value="glasses">Thin glasses</option>
+            </select>
+          </div>
+          <div id="beard-wrap" hidden>
+            <label for="facial">Facial hair</label>
+            <select id="facial">
+              <option value="none">None</option>
+              <option value="stubble">Stubble</option>
+              <option value="beard">Short beard</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="make" class="secondary" type="button">Make the presenter</button>
+        </div>
+        <p class="hint">Flux 2 draws the still in four steps. No LoRA.</p>
+        <label for="portrait">Or use a photo</label>
+        <input id="portrait" type="file" accept="image/png,image/jpeg,image/webp">
+      </section>
+
+      <section class="panel">
+        <p class="kicker">04 · Set</p>
+        <div class="sets" id="sets">
+          <button type="button" class="set selected" data-bg="photo"><span class="swatch photo"></span>Photo</button>
+          <button type="button" class="set" data-bg="night"><span class="swatch night"></span>Night</button>
+          <button type="button" class="set" data-bg="warm"><span class="swatch warm"></span>Warm</button>
+          <button type="button" class="set" data-bg="news"><span class="swatch news"></span>News</button>
+          <button type="button" class="set" data-bg="grey"><span class="swatch grey"></span>Grey</button>
+          <button type="button" class="set" data-bg="import" id="yours" hidden><span class="swatch" id="yours-swatch"></span>Yours</button>
+        </div>
+        <label for="backdrop">Import a background</label>
+        <input id="backdrop" type="file" accept="image/png,image/jpeg,image/webp">
+        <label for="room-prompt">Background prompt</label>
+        <input id="room-prompt" type="text" maxlength="400" placeholder="Describe the empty room">
+        <div class="pair">
+          <button id="room" class="secondary" type="button">Generate background</button>
+          <button id="move" class="secondary" type="button" aria-pressed="false">Animate background</button>
+        </div>
+        <button id="go" type="submit">Make the take</button>
+      </section>
+    </form>
+
+    <div class="stage-col">
+      <section class="panel">
+        <p class="kicker">Stage</p>
+        <div class="monitor">
+          <img id="still" alt="Portrait on the chosen set" hidden>
+          <video id="player" controls hidden></video>
+        </div>
+        <div id="log">Ready when ComfyUI and the proxy are up.</div>
+      </section>
+      <section class="panel" id="publish">
+        <p class="kicker">05 · Publish</p>
+        <label for="title">Title</label>
+        <input id="title" type="text" maxlength="100" placeholder="Title of the take">
+        <label for="blurb">Description</label>
+        <textarea id="blurb" maxlength="5000" placeholder="What the clip says"></textarea>
+        <label for="privacy">YouTube visibility</label>
+        <select id="privacy">
+          <option value="private" selected>Private</option>
+          <option value="unlisted">Unlisted</option>
+          <option value="public">Public</option>
+        </select>
+        <p class="hint">YouTube can take the file. Rumble and Spotify accept it on their own sites.</p>
+        <details>
+          <summary>YouTube login</summary>
+          <label for="client-id">Google client id</label>
+          <input id="client-id" type="text" autocomplete="off">
+          <label for="client-secret">Google client secret</label>
+          <input id="client-secret" type="password" autocomplete="off">
+        </details>
+        <div class="actions">
+          <button id="connect" class="secondary" type="button">Connect YouTube</button>
+          <button id="yt" type="button">Send to YouTube</button>
+          <button id="rumble" class="secondary" type="button">Open Rumble</button>
+          <button id="spotify" class="secondary" type="button">Open Spotify</button>
+          <button id="folder" class="secondary" type="button">Show the file</button>
+        </div>
+        <p id="publish-note" class="hint"></p>
+      </section>
+    </div>
+  </div>
+  <footer>
+    <p>Backed by <strong>NVIDIA AI</strong>, <strong>Runpod</strong>, <strong>LTX</strong>,<br class="phone"> <strong>Black Forest Labs</strong>, and <strong>MiniMax</strong></p>
+  </footer>
+  <script>
+    const script = document.querySelector("#script");
+    const count = document.querySelector("#count");
+    const form = document.querySelector("#form");
+    const go = document.querySelector("#go");
+    const log = document.querySelector("#log");
+    const player = document.querySelector("#player");
+    const still = document.querySelector("#still");
+    const statusEl = document.querySelector("#status");
+    let background = "photo";
+    let previewToken = 0;
+    let portraitB64 = "";
+    let portraitName = "portrait.png";
+    let backgroundB64 = "";
+    const women = ["bf_emma", "bf_alice", "bf_isabella", "bf_lily"];
+    const men = ["bm_daniel", "bm_george", "bm_lewis", "bm_fable"];
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = "status" + (kind ? " " + kind : "");
+    }
+    function words(value) {
+      return (value.trim().match(/\S+/g) || []).length;
+    }
+    function paintCount() {
+      const total = words(script.value);
+      count.textContent = total + " words";
+      count.className = total > 20 ? "over" : "";
+    }
+    script.addEventListener("input", paintCount);
+    paintCount();
+
+    const roomLines = {
+      photo: "A neutral broadcast studio with a dark desk and a plain dark wall",
+      night: "A dim evening studio with a deep blue wall, a warm key light, and a dark desk",
+      warm: "A warm wood studio with an amber wall, lamp light, and a honey-colored desk",
+      news: "A cool news studio with a grey-blue wall, even light, and a pale desk",
+      grey: "A plain soft-grey seamless backdrop with a low dark desk",
+      import: "A neutral broadcast studio with a dark desk and a plain dark wall"
+    };
+    const roomPrompt = document.querySelector("#room-prompt");
+    let roomEdited = false;
+    roomPrompt.value = roomLines.photo;
+    roomPrompt.addEventListener("input", () => { roomEdited = true; });
+    let animateBg = false;
+    const move = document.querySelector("#move");
+    move.addEventListener("click", () => {
+      animateBg = !animateBg;
+      move.setAttribute("aria-pressed", animateBg ? "true" : "false");
+      log.className = "";
+      log.textContent = animateBg
+        ? "Background motion is on. Make the take."
+        : "Background motion is off.";
+      setStatus("Ready", "ok");
+    });
+    document.querySelectorAll(".set").forEach((button) => {
+      button.addEventListener("click", () => {
+        background = button.dataset.bg;
+        document.querySelectorAll(".set").forEach((item) => item.classList.toggle("selected", item === button));
+        if (!roomEdited) roomPrompt.value = roomLines[background] || roomLines.photo;
+        showStill();
+      });
+    });
+    document.querySelector("#backdrop").addEventListener("change", async () => {
+      const file = document.querySelector("#backdrop").files[0];
+      if (!file) return;
+      const dataUrl = await readFile(file);
+      backgroundB64 = String(dataUrl).split(",")[1];
+      const yours = document.querySelector("#yours");
+      yours.hidden = false;
+      document.querySelector("#yours-swatch").style.backgroundImage = "url(" + dataUrl + ")";
+      document.querySelector("#yours-swatch").style.backgroundSize = "cover";
+      background = "import";
+      document.querySelectorAll(".set").forEach((item) => item.classList.toggle("selected", item === yours));
+      showStill();
+    });
+    document.querySelector("#portrait").addEventListener("change", async () => {
+      const file = document.querySelector("#portrait").files[0];
+      if (!file) return;
+      portraitName = file.name;
+      const dataUrl = await readFile(file);
+      portraitB64 = String(dataUrl).split(",")[1];
+      showStill();
+    });
+    const womenStyles = [
+      ["short", "Short"],
+      ["bob", "Bob"],
+      ["waves", "Waves"],
+      ["long", "Long"],
+      ["curls", "Curls"],
+      ["tied", "Tied back"],
+      ["bun", "Low bun"],
+      ["fringe", "Fringe"]
+    ];
+    const menStyles = [
+      ["short", "Short"],
+      ["crop", "Textured crop"],
+      ["fade", "Fade"],
+      ["side", "Side part"],
+      ["quiff", "Quiff"],
+      ["curls", "Short curls"],
+      ["tied", "Tied back"],
+      ["buzz", "Buzz cut"]
+    ];
+    const womenClothes = [
+      ["suit", "Suit"],
+      ["blouse", "Blouse and jacket"],
+      ["knit", "Fine knit"],
+      ["dress", "Dress"],
+      ["shirt", "Shirt"],
+      ["coat", "Long coat"],
+      ["blazer", "Blazer"],
+      ["turtleneck", "Turtleneck"]
+    ];
+    const menClothes = [
+      ["suit", "Suit"],
+      ["shirt", "Open-collar shirt"],
+      ["knit", "Knit"],
+      ["jacket", "Blazer"],
+      ["coat", "Overcoat"],
+      ["polo", "Polo"],
+      ["rollneck", "Rollneck"],
+      ["vest", "Waistcoat"]
+    ];
+    function fillSelect(select, list, fallback) {
+      const current = select.value;
+      select.replaceChildren();
+      for (const [value, label] of list) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        select.append(option);
+      }
+      select.value = list.some(([value]) => value === current) ? current : fallback;
+    }
+    function paintPerson() {
+      const man = document.querySelector("#person").value === "man";
+      document.querySelector("#beard-wrap").hidden = !man;
+      const voice = document.querySelector("#voice");
+      const group = man ? men : women;
+      if (!group.includes(voice.value)) voice.value = group[0];
+      fillSelect(
+        document.querySelector("#style"),
+        man ? menStyles : womenStyles,
+        man ? "crop" : "waves"
+      );
+      fillSelect(
+        document.querySelector("#wardrobe"),
+        man ? menClothes : womenClothes,
+        "suit"
+      );
+    }
+    document.querySelector("#person").addEventListener("change", paintPerson);
+    paintPerson();
+    document.querySelector("#find").addEventListener("click", async () => {
+      const find = document.querySelector("#find");
+      find.disabled = true;
+      log.className = "";
+      log.textContent = "Searching today's headlines, then writing one line on this PC.";
+      setStatus("Writing", "busy");
+      try {
+        const response = await fetch("/api/line", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: document.querySelector("#topic").value })
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          log.textContent = body.error || "No line was written.";
+          log.className = "error";
+          setStatus("Check", "bad");
+          return;
+        }
+        script.value = body.script;
+        paintCount();
+        const found = (body.headlines || []).slice(0, 3).join(" · ");
+        log.textContent = found ? "Line ready. " + found : "Line ready.";
+        setStatus("Ready", "ok");
+      } catch (err) {
+        log.textContent = "No line was written.";
+        log.className = "error";
+        setStatus("Check", "bad");
+      } finally {
+        find.disabled = false;
+      }
+    });
+    document.querySelector("#room").addEventListener("click", async () => {
+      const room = document.querySelector("#room");
+      room.disabled = true;
+      go.disabled = true;
+      log.className = "";
+      log.textContent = "Drawing an empty studio with Flux 2. Four steps. No LoRA.";
+      setStatus("Drawing", "busy");
+      try {
+        const response = await fetch("/api/room", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ background, prompt: roomPrompt.value })
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          log.textContent = body.error || "The background could not be drawn.";
+          log.className = "error";
+          setStatus("Check", "bad");
+          return;
+        }
+        backgroundB64 = body.image;
+        const yours = document.querySelector("#yours");
+        yours.hidden = false;
+        const url = "data:image/png;base64," + body.image;
+        document.querySelector("#yours-swatch").style.backgroundImage = "url(" + url + ")";
+        document.querySelector("#yours-swatch").style.backgroundSize = "cover";
+        background = "import";
+        document.querySelectorAll(".set").forEach((item) => item.classList.toggle("selected", item === yours));
+        player.hidden = true;
+        still.hidden = false;
+        still.src = url;
+        log.textContent = "Background ready. Make the presenter to place someone in this room.";
+        setStatus("Ready", "ok");
+      } catch (err) {
+        log.textContent = "The background could not be drawn.";
+        log.className = "error";
+        setStatus("Check", "bad");
+      } finally {
+        room.disabled = false;
+        go.disabled = false;
+      }
+    });
+    document.querySelector("#make").addEventListener("click", async () => {
+      const make = document.querySelector("#make");
+      go.disabled = true;
+      make.disabled = true;
+      log.className = "";
+      const look = {
+        role: document.querySelector("#role").value,
+        person: document.querySelector("#person").value,
+        age: document.querySelector("#age").value,
+        wardrobe: document.querySelector("#wardrobe").value,
+        hair: document.querySelector("#hair").value,
+        style: document.querySelector("#style").value,
+        eyes: document.querySelector("#eyes").value,
+        glasses: document.querySelector("#glasses").value,
+        facial: document.querySelector("#facial").value
+      };
+      if (portraitB64) look.portrait = portraitB64;
+      if (background === "import" && backgroundB64) look.background_image = backgroundB64;
+      log.textContent = look.background_image
+        ? "Drawing the start frame in that picture with Flux 2. Four steps. No LoRA."
+        : "Drawing the presenter with Flux 2. Four steps. No LoRA.";
+      setStatus("Drawing", "busy");
+      try {
+        const response = await fetch("/api/presenter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(look)
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          log.textContent = body.error || "The presenter could not be drawn.";
+          log.className = "error";
+          setStatus("Check", "bad");
+          return;
+        }
+        portraitB64 = body.image;
+        portraitName = "presenter.png";
+        background = "photo";
+        document.querySelectorAll(".set").forEach((item) => item.classList.toggle("selected", item.dataset.bg === "photo"));
+        still.hidden = false;
+        still.src = "data:image/png;base64," + body.image;
+        log.textContent = "Presenter ready. This still is the start of the take.";
+        setStatus("Ready", "ok");
+      } catch (err) {
+        log.textContent = "The presenter could not be drawn.";
+        log.className = "error";
+        setStatus("Check", "bad");
+      } finally {
+        go.disabled = false;
+        make.disabled = false;
+      }
+    });
+
+    function stillBody() {
+      const body = {
+        background,
+        filename: portraitName,
+        portrait: portraitB64,
+        model: document.querySelector("#model").value,
+        prompt: roomPrompt.value,
+        animate: animateBg
+      };
+      if (background === "import") body.background_image = backgroundB64;
+      return body;
+    }
+
+    async function showStill() {
+      const token = ++previewToken;
+      if (!portraitB64 && background === "import" && backgroundB64) {
+        still.hidden = false;
+        still.src = "data:image/png;base64," + backgroundB64;
+        return;
+      }
+      if (!portraitB64) {
+        still.hidden = true;
+        return;
+      }
+      if (background === "photo" || background === "import") {
+        still.hidden = false;
+        still.src = "data:image/png;base64," + portraitB64;
+        if (background === "import") {
+          log.className = "";
+          log.textContent = "Press Make the presenter. Flux 2 uses your picture as the room. No LoRA.";
+        }
+        return;
+      }
+      log.className = "";
+      log.textContent = "Placing the person on the background.";
+      setStatus("Placing", "busy");
+      const response = await fetch("/api/background", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stillBody())
+      });
+      if (token !== previewToken) return;
+      const body = await response.json();
+      if (!response.ok) {
+        log.textContent = body.error || "The set could not be made.";
+        log.className = "error";
+        setStatus("Check", "bad");
+        return;
+      }
+      still.hidden = false;
+      still.src = "data:image/png;base64," + body.image;
+      log.textContent = "Set ready. This is the still the take starts from.";
+      setStatus("Ready", "ok");
+    }
+
+    function readFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    let timer = null;
+    async function poll() {
+      const response = await fetch("/api/status");
+      const body = await response.json();
+      const recent = (body.lines || []).slice(-4);
+      const lines = recent.join("\n");
+      log.textContent = body.error ? (lines + "\n" + body.error) : (lines || body.message || "");
+      log.className = body.status === "error" ? "error" : "";
+      document.querySelector(".monitor").classList.toggle("live", body.status === "running");
+      if (body.status === "running") {
+        setStatus("Working", "busy");
+        go.disabled = true;
+      } else if (body.status === "done" && body.video) {
+        setStatus("Ready", "ok");
+        player.hidden = false;
+        player.src = body.video;
+        document.querySelector("#publish").hidden = false;
+        if (!document.querySelector("#title").value) {
+          document.querySelector("#title").value = script.value.trim().slice(0, 100);
+          document.querySelector("#blurb").value = script.value.trim();
+        }
+        go.disabled = false;
+        clearInterval(timer);
+      } else if (body.status === "error") {
+        setStatus("Check", "bad");
+        go.disabled = false;
+        clearInterval(timer);
+      } else if (body.status === "idle") {
+        setStatus("Ready", "");
+      }
+    }
+
+    function videoFile() {
+      const src = player.currentSrc || player.src || "";
+      const name = decodeURIComponent(src.split("/outputs/").pop().split("?")[0] || "");
+      return name;
+    }
+    document.querySelector("#connect").addEventListener("click", async () => {
+      const note = document.querySelector("#publish-note");
+      note.className = "hint";
+      const response = await fetch("/api/publish/youtube/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: document.querySelector("#client-id").value,
+          client_secret: document.querySelector("#client-secret").value
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        note.textContent = body.error || "YouTube did not connect.";
+        note.className = "hint error";
+        return;
+      }
+      window.open(body.url, "_blank");
+      note.textContent = "Allow the upload in the Google tab. The redirect address to register is http://127.0.0.1:8765/api/publish/youtube/callback";
+    });
+    document.querySelector("#yt").addEventListener("click", async () => {
+      const note = document.querySelector("#publish-note");
+      const yt = document.querySelector("#yt");
+      yt.disabled = true;
+      note.className = "hint";
+      note.textContent = "Sending the file to YouTube.";
+      try {
+        const response = await fetch("/api/publish/youtube", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            file: videoFile(),
+            title: document.querySelector("#title").value,
+            description: document.querySelector("#blurb").value,
+            privacy: document.querySelector("#privacy").value
+          })
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          note.textContent = body.error || "YouTube did not take the file.";
+          note.className = "hint error";
+          return;
+        }
+        note.textContent = "YouTube has the video. It starts as " + document.querySelector("#privacy").value + ".";
+        window.open(body.url, "_blank");
+      } catch (err) {
+        note.textContent = "YouTube did not take the file.";
+        note.className = "hint error";
+      } finally {
+        yt.disabled = false;
+      }
+    });
+    document.querySelector("#rumble").addEventListener("click", () => {
+      window.open("https://rumble.com/upload.php", "_blank");
+      document.querySelector("#publish-note").textContent = "Rumble has no public upload API. Drop the file from the output folder onto that page.";
+    });
+    document.querySelector("#spotify").addEventListener("click", () => {
+      window.open("https://creators.spotify.com/", "_blank");
+      document.querySelector("#publish-note").textContent = "Spotify for Creators accepts the video on its website. Choose New episode, then the file from the output folder.";
+    });
+    document.querySelector("#folder").addEventListener("click", async () => {
+      await fetch("/api/publish/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!portraitB64) {
+        log.textContent = "Make a presenter, or choose a photo.";
+        log.className = "error";
+        setStatus("Check", "bad");
+        return;
+      }
+      if (background === "import" && !backgroundB64) {
+        log.textContent = "Choose a background picture.";
+        log.className = "error";
+        setStatus("Check", "bad");
+        return;
+      }
+      const countNow = words(script.value);
+      if (countNow < 1 || countNow > 20) {
+        log.textContent = "Use 1 to 20 words. This take is 5 seconds.";
+        log.className = "error";
+        setStatus("Check", "bad");
+        return;
+      }
+      go.disabled = true;
+      player.hidden = true;
+      log.className = "";
+      log.textContent = "Reading the portrait.";
+      setStatus("Queued", "busy");
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: script.value.trim(),
+          voice: document.querySelector("#voice").value,
+          ...stillBody()
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        log.textContent = body.error || "Could not start.";
+        log.className = "error";
+        setStatus("Check", "bad");
+        go.disabled = false;
+        return;
+      }
+      log.textContent = "Queued.";
+      clearInterval(timer);
+      timer = setInterval(poll, 2000);
+      poll();
+    });
+
+    poll();
+  </script>
+</body>
+</html>

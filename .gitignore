@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+outputs/
+.env
+.secrets/
+*.mp4
+*.wav
+*.flac

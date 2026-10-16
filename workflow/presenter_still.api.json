@@ -1,0 +1,109 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {"title": "Flux 2 Klein 9B distilled"},
+    "inputs": {
+      "unet_name": "flux-2-klein-9b-fp8.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "Qwen3 8B"},
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {"title": "Flux 2 VAE"},
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {"title": "Presenter"},
+    "inputs": {
+      "text": "A photorealistic medium close-up of a woman news anchor seated at a broadcast desk, facing the camera.",
+      "clip": ["2", 0]
+    }
+  },
+  "5": {
+    "class_type": "ConditioningZeroOut",
+    "_meta": {"title": "Empty negative"},
+    "inputs": {
+      "conditioning": ["4", 0]
+    }
+  },
+  "6": {
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {"title": "768"},
+    "inputs": {
+      "width": 768,
+      "height": 768,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "Flux2Scheduler",
+    "_meta": {"title": "4 steps"},
+    "inputs": {
+      "steps": 4,
+      "width": 768,
+      "height": 768
+    }
+  },
+  "8": {
+    "class_type": "KSamplerSelect",
+    "_meta": {"title": "Euler"},
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "9": {
+    "class_type": "CFGGuider",
+    "_meta": {"title": "CFG 1"},
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["4", 0],
+      "negative": ["5", 0],
+      "cfg": 1
+    }
+  },
+  "10": {
+    "class_type": "RandomNoise",
+    "_meta": {"title": "Seed"},
+    "inputs": {
+      "noise_seed": 1
+    }
+  },
+  "11": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {"title": "Sample"},
+    "inputs": {
+      "noise": ["10", 0],
+      "guider": ["9", 0],
+      "sampler": ["8", 0],
+      "sigmas": ["7", 0],
+      "latent_image": ["6", 0]
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "_meta": {"title": "Decode"},
+    "inputs": {
+      "samples": ["11", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "13": {
+    "class_type": "SaveImage",
+    "_meta": {"title": "Presenter still"},
+    "inputs": {
+      "images": ["12", 0],
+      "filename_prefix": "presenter/Podcast-Video-Maker-Workflow"
+    }
+  }
+}
