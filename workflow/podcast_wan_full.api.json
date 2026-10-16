@@ -72,7 +72,7 @@
     "class_type": "KokoroGenerator",
     "_meta": {"title": "Script"},
     "inputs": {
-      "text": "Good evening. Here is a short update from the studio.",
+      "text": "Comfy-ui, LTX, and Wan are amazing.",
       "speaker": ["24", 0],
       "speed": 1,
       "lang": "English (British)"
