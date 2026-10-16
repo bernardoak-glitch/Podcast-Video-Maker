@@ -1,0 +1,145 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {"title": "MiniMax H3"},
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {"title": "Qwen3-VL on GPU"},
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {"title": "MiniMax video VAE"},
+    "inputs": {"vae_name": "minimax_h3_video_vae_fp16.safetensors"}
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "_meta": {"title": "MiniMax audio VAE"},
+    "inputs": {"vae_name": "minimax_h3_audio_vae_fp32.safetensors"}
+  },
+  "5": {
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {"title": "8-step turbo"},
+    "inputs": {
+      "model": ["1", 0],
+      "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+      "strength_model": 1
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "_meta": {"title": "Portrait"},
+    "inputs": {"image": "portrait.png"}
+  },
+  "8": {
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {"title": "First frame to video"},
+    "inputs": {
+      "clip": ["2", 0],
+      "vae": ["3", 0],
+      "prompt": "A presenter seated at a broadcast desk, speaking directly to the camera. Locked-off medium close-up. The face stays the same. Both hands rest on the desk. The presenter remains seated.",
+      "width": 768,
+      "height": 768,
+      "length": 124,
+      "first_frame": ["7", 0]
+    }
+  },
+  "9": {
+    "class_type": "BasicGuider",
+    "_meta": {"title": "CFG 1"},
+    "inputs": {
+      "model": ["5", 0],
+      "conditioning": ["8", 0]
+    }
+  },
+  "10": {
+    "class_type": "KSamplerSelect",
+    "_meta": {"title": "res multistep"},
+    "inputs": {"sampler_name": "res_multistep"}
+  },
+  "11": {
+    "class_type": "BasicScheduler",
+    "_meta": {"title": "8 steps"},
+    "inputs": {
+      "model": ["5", 0],
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1
+    }
+  },
+  "12": {
+    "class_type": "RandomNoise",
+    "_meta": {"title": "Seed"},
+    "inputs": {"noise_seed": 20261016}
+  },
+  "13": {
+    "class_type": "DisTorchPurgeVRAMV2",
+    "_meta": {"title": "Unload the text encoder"},
+    "inputs": {
+      "anything": ["8", 1],
+      "purge_cache": true,
+      "purge_models": true,
+      "purge_seedvr2_models": false,
+      "purge_qwen3vl_models": true,
+      "purge_nunchaku_models": false
+    }
+  },
+  "14": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {"title": "Sample"},
+    "inputs": {
+      "noise": ["12", 0],
+      "guider": ["9", 0],
+      "sampler": ["10", 0],
+      "sigmas": ["11", 0],
+      "latent_image": ["13", 0]
+    }
+  },
+  "15": {
+    "class_type": "VAEDecode",
+    "_meta": {"title": "Decode picture"},
+    "inputs": {
+      "samples": ["14", 0],
+      "vae": ["3", 0]
+    }
+  },
+  "16": {
+    "class_type": "VAEDecodeAudio",
+    "_meta": {"title": "Decode soundtrack"},
+    "inputs": {
+      "samples": ["14", 0],
+      "vae": ["4", 0]
+    }
+  },
+  "22": {
+    "class_type": "CreateVideo",
+    "_meta": {"title": "24 fps"},
+    "inputs": {
+      "images": ["15", 0],
+      "audio": ["16", 0],
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB"
+    }
+  },
+  "23": {
+    "class_type": "SaveVideo",
+    "_meta": {"title": "Save the take"},
+    "inputs": {
+      "video": ["22", 0],
+      "filename_prefix": "video/Podcast-Video-Maker-Workflow",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto"
+    }
+  }
+}

@@ -185,6 +185,8 @@
     .pair button { width: 100%; margin: 0; padding: 5px 8px; }
     #go { width: 100%; margin-top: 3px; padding: 5px 10px; }
     #move[aria-pressed="true"] { background: var(--accent); color: var(--ink); border-color: transparent; }
+    #line-mode { margin-top: 0; }
+    #line-mode button[aria-pressed="true"] { background: var(--accent); color: var(--ink); border-color: transparent; }
     form > section:nth-child(4) { padding: 6px 8px; }
     form > section:nth-child(4) label { margin: 3px 0 1px; }
     form > section:nth-child(4) .kicker { margin-bottom: 3px; }
@@ -293,15 +295,20 @@
     <form id="form">
       <section class="panel">
         <p class="kicker">01 · Line</p>
-        <label for="topic">Topic</label>
-        <div class="topic-line">
-          <input id="topic" type="text" maxlength="160" placeholder="news in ukraine war today">
-          <button id="find" class="secondary" type="button">Write the line</button>
+        <div class="pair" id="line-mode">
+          <button id="mine" class="secondary" type="button" aria-pressed="true">My line</button>
+          <button id="from-topic" class="secondary" type="button" aria-pressed="false">From a topic</button>
         </div>
-        <p class="hint">Local headlines, then one line written on this PC. 20 words at most.</p>
-        <label for="script">Script</label>
-        <textarea id="script" maxlength="400">Good evening. Here is a short update from the studio.</textarea>
-        <div class="meta"><span>About 12 words fills the take.</span><span id="count"></span></div>
+        <div id="topic-block" hidden>
+          <label for="topic">Topic</label>
+          <div class="topic-line">
+            <input id="topic" type="text" maxlength="160" placeholder="news in ukraine war today">
+            <button id="find" class="secondary" type="button">Write the line</button>
+          </div>
+        </div>
+        <label for="script">Your line</label>
+        <textarea id="script" maxlength="400" placeholder="Type the sentence the presenter says.">Good evening. Here is a short update from the studio.</textarea>
+        <div class="meta"><span id="line-hint">Type 1 to 20 words. About 12 fills the take.</span><span id="count"></span></div>
       </section>
 
       <section class="panel">
@@ -327,10 +334,11 @@
               <option value="ltx">LTX 2.5 full</option>
               <option value="wan">Wan 2.2 speech</option>
               <option value="wan-full">Wan 2.2 full</option>
+              <option value="minimax">MiniMax H3</option>
             </select>
           </div>
         </div>
-        <p class="hint">Q3 and fp8 Wan are the lighter choices. Full LTX and Wan bf16 are listed for a larger card.</p>
+        <p class="hint">Q3 and fp8 Wan are lighter. Full LTX, full Wan, and MiniMax H3 need a larger card.</p>
       </section>
 
       <section class="panel">
@@ -504,6 +512,8 @@
     const statusEl = document.querySelector("#status");
     let background = "photo";
     let previewToken = 0;
+    let writingLine = false;
+    let lineHold = false;
     let portraitB64 = "";
     let portraitName = "portrait.png";
     let backgroundB64 = "";
@@ -524,6 +534,26 @@
     }
     script.addEventListener("input", paintCount);
     paintCount();
+    const topicBlock = document.querySelector("#topic-block");
+    const lineHint = document.querySelector("#line-hint");
+    const mine = document.querySelector("#mine");
+    const fromTopic = document.querySelector("#from-topic");
+    function setLineMode(own) {
+      mine.setAttribute("aria-pressed", own ? "true" : "false");
+      fromTopic.setAttribute("aria-pressed", own ? "false" : "true");
+      topicBlock.hidden = own;
+      lineHint.textContent = own
+        ? "Type 1 to 20 words. About 12 fills the take."
+        : "Search a topic, or edit the line yourself.";
+    }
+    mine.addEventListener("click", () => {
+      setLineMode(true);
+      script.focus();
+    });
+    fromTopic.addEventListener("click", () => {
+      setLineMode(false);
+      document.querySelector("#topic").focus();
+    });
 
     const roomLines = {
       photo: "A neutral broadcast studio with a dark desk and a plain dark wall",
@@ -650,8 +680,10 @@
     document.querySelector("#find").addEventListener("click", async () => {
       const find = document.querySelector("#find");
       find.disabled = true;
+      writingLine = true;
+      lineHold = false;
       log.className = "";
-      log.textContent = "Searching today's headlines, then writing one line on this PC.";
+      log.textContent = "Searching headlines for that topic, then writing one line on this PC.";
       setStatus("Writing", "busy");
       try {
         const response = await fetch("/api/line", {
@@ -661,22 +693,34 @@
         });
         const body = await response.json();
         if (!response.ok) {
+          writingLine = false;
           log.textContent = body.error || "No line was written.";
           log.className = "error";
+          if (response.status === 409) {
+            setStatus("Working", "busy");
+            return;
+          }
           setStatus("Check", "bad");
           return;
         }
         script.value = body.script;
         paintCount();
-        const found = (body.headlines || []).slice(0, 3).join(" · ");
-        log.textContent = found ? "Line ready. " + found : "Line ready.";
+        const notes = {
+          today: "Line ready.",
+          "this week": "Line ready, from this week.",
+          recent: "Line ready, from the latest headlines."
+        };
+        lineHold = true;
+        writingLine = false;
+        log.textContent = notes[body.span] || "Line ready.";
         setStatus("Ready", "ok");
       } catch (err) {
+        writingLine = false;
         log.textContent = "No line was written.";
         log.className = "error";
         setStatus("Check", "bad");
       } finally {
-        find.disabled = false;
+        if (document.querySelector("#status").textContent !== "Working") find.disabled = false;
       }
     });
     document.querySelector("#room").addEventListener("click", async () => {
@@ -844,13 +888,19 @@
       const body = await response.json();
       const recent = (body.lines || []).slice(-4);
       const lines = recent.join("\n");
-      log.textContent = body.error ? (lines + "\n" + body.error) : (lines || body.message || "");
-      log.className = body.status === "error" ? "error" : "";
+      const note = body.error ? (lines + "\n" + body.error) : (lines || body.message || "");
+      const find = document.querySelector("#find");
       document.querySelector(".monitor").classList.toggle("live", body.status === "running");
       if (body.status === "running") {
+        lineHold = false;
+        log.textContent = note;
+        log.className = "";
         setStatus("Working", "busy");
         go.disabled = true;
+        find.disabled = true;
       } else if (body.status === "done" && body.video) {
+        log.textContent = note;
+        log.className = "";
         setStatus("Ready", "ok");
         player.hidden = false;
         player.src = body.video;
@@ -860,13 +910,22 @@
           document.querySelector("#blurb").value = script.value.trim();
         }
         go.disabled = false;
+        find.disabled = false;
         clearInterval(timer);
       } else if (body.status === "error") {
+        log.textContent = note;
+        log.className = "error";
         setStatus("Check", "bad");
         go.disabled = false;
+        find.disabled = false;
         clearInterval(timer);
       } else if (body.status === "idle") {
-        setStatus("Ready", "");
+        if (!writingLine) find.disabled = false;
+        if (!lineHold && !writingLine) {
+          log.textContent = body.message || "Ready.";
+          log.className = "";
+          setStatus("Ready", "");
+        }
       }
     }
 
@@ -965,6 +1024,9 @@
         return;
       }
       go.disabled = true;
+      document.querySelector("#find").disabled = true;
+      lineHold = false;
+      writingLine = false;
       player.hidden = true;
       log.className = "";
       log.textContent = "Reading the portrait.";
@@ -984,6 +1046,7 @@
         log.className = "error";
         setStatus("Check", "bad");
         go.disabled = false;
+        document.querySelector("#find").disabled = false;
         return;
       }
       log.textContent = "Queued.";

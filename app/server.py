@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from backgrounds import SETS, prepare, room_prompt, video_prompt
+from backgrounds import BASE_PROMPT, SETS, prepare, room_prompt, video_prompt
 from news import spoken_line
 from presenter import (
     EYES,
@@ -41,6 +41,7 @@ WORKFLOW = ROOT / "workflow" / "podcast_short.api.json"
 WAN_FULL = ROOT / "workflow" / "podcast_wan_full.api.json"
 LTX_WORKFLOW = ROOT / "workflow" / "podcast_ltx.api.json"
 LTX_FULL = ROOT / "workflow" / "podcast_ltx_full.api.json"
+MINIMAX = ROOT / "workflow" / "podcast_minimax.api.json"
 VIDEO_MODELS = {
     "ltx-q3": {
         "file": LTX_WORKFLOW,
@@ -61,6 +62,12 @@ VIDEO_MODELS = {
         "file": WAN_FULL,
         "unet": "wan2.2_s2v_14B_bf16.safetensors",
         "log": "Queued. Wan 2.2 speech bf16, 20 steps, no LightX2V LoRA. It needs a larger card than the fp8 pass.",
+    },
+    "minimax": {
+        "file": MINIMAX,
+        "unet": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "prompt_input": "prompt",
+        "log": "Queued. MiniMax H3 image to video, 8-step turbo, open weights. The line is in the prompt and the model makes the soundtrack. It needs the H3 checkpoint and a larger card.",
     },
 }
 PRESENTER = ROOT / "workflow" / "presenter_still.api.json"
@@ -117,6 +124,11 @@ def _words(text: str) -> int:
 def _safe_name(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._")
     return cleaned or "take"
+
+
+def _busy() -> bool:
+    with _lock:
+        return _job["status"] == "running"
 
 
 def _claim():
@@ -261,10 +273,22 @@ def _run(
         portrait_asset = client.assets.from_file(path)
         workflow.set_input("1", "unet_name", spec["unet"])
         workflow.set_input("7", "image", portrait_asset)
-        workflow.set_input("25", "text", script)
-        workflow.set_input("24", "speaker_name", voice)
-        if prompt:
-            workflow.set_input("8", "text", prompt)
+        if spec.get("prompt_input") == "prompt":
+            motion = (prompt or BASE_PROMPT).strip()
+            if not motion.endswith("."):
+                motion += "."
+            line = script.strip().rstrip(".")
+            workflow.set_input(
+                "8",
+                "prompt",
+                f"{motion} The presenter says this line once: {line}. "
+                "Audio is only that spoken line in a clear voice, with no music and no other voices.",
+            )
+        else:
+            workflow.set_input("25", "text", script)
+            workflow.set_input("24", "speaker_name", voice)
+            if prompt:
+                workflow.set_input("8", "text", prompt)
         if animate:
             _log("The background will move behind the seated presenter.")
         _log(spec["log"])
@@ -447,20 +471,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/line":
             topic = str(payload.get("topic") or "")
-            if not _claim():
+            if _busy():
                 self._json(409, {"error": "A take is already running."})
                 return
             try:
                 result = spoken_line(topic)
             except ValueError as exc:
-                _release_idle()
                 self._json(400, {"error": str(exc)})
                 return
             except Exception as exc:
-                _set(status="error", message="The line failed.", error=str(exc))
                 self._json(500, {"error": str(exc)})
                 return
-            _release_idle()
             self._json(200, result)
             return
         if path == "/api/room":
@@ -557,7 +578,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         model = str(payload.get("model") or "ltx-q3")
         if model not in VIDEO_MODELS:
-            self._json(400, {"error": "Pick LTX 2.5 Distilled Q3, LTX 2.5 full, Wan 2.2 speech, or Wan 2.2 full."})
+            self._json(400, {"error": "Pick LTX 2.5 Distilled Q3, LTX 2.5 full, Wan 2.2 speech, Wan 2.2 full, or MiniMax H3."})
             return
         if voice not in VOICES:
             self._json(400, {"error": "Pick Emma, Alice, Isabella, or Lily."})
