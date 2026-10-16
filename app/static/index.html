@@ -162,6 +162,8 @@
     .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; color: var(--muted); font-size: 0.75rem; }
     .over { color: var(--bad); }
     .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+    .split.length { grid-template-columns: 1.15fr 1.35fr 0.7fr; }
+    #seconds:disabled { opacity: 0.45; }
     .look { grid-template-columns: 1fr 1fr 1fr; }
     button {
       background: var(--accent);
@@ -313,7 +315,7 @@
 
       <section class="panel">
         <p class="kicker">02 · Voice and model</p>
-        <div class="split">
+        <div class="split length">
           <div>
             <label for="voice">Voice</label>
             <select id="voice">
@@ -337,8 +339,12 @@
               <option value="minimax">MiniMax H3</option>
             </select>
           </div>
+          <div>
+            <label for="seconds">Seconds</label>
+            <input id="seconds" type="number" min="5" max="10" value="5" inputmode="numeric">
+          </div>
         </div>
-        <p class="hint">Q3 and fp8 Wan are lighter. Full LTX, full Wan, and MiniMax H3 need a larger card.</p>
+        <p class="hint">LTX can be 5 to 10 seconds. Wan and MiniMax stay at 5. Q3 is the lighter LTX choice.</p>
       </section>
 
       <section class="panel">
@@ -527,10 +533,30 @@
     function words(value) {
       return (value.trim().match(/\S+/g) || []).length;
     }
+    let ltxSeconds = 5;
+    function isLtx() {
+      const model = document.querySelector("#model").value;
+      return model === "ltx-q3" || model === "ltx";
+    }
+    function takeSeconds() {
+      if (!isLtx()) return 5;
+      const n = parseInt(document.querySelector("#seconds").value, 10);
+      if (!Number.isFinite(n)) return 5;
+      return Math.min(10, Math.max(5, n));
+    }
+    function wordCap() { return takeSeconds() * 4; }
+    function fillWords() { return Math.round(takeSeconds() * 2.4); }
     function paintCount() {
+      const cap = wordCap();
+      const fill = fillWords();
       const total = words(script.value);
       count.textContent = total + " words";
-      count.className = total > 20 ? "over" : "";
+      count.className = total > cap ? "over" : "";
+      const own = document.querySelector("#mine").getAttribute("aria-pressed") === "true";
+      document.querySelector("#line-hint").textContent = own
+        ? "Type 1 to " + cap + " words. About " + fill + " fills the take."
+        : "The written line will be " + fill + " to " + cap + " words.";
+      script.maxLength = Math.max(400, cap * 12);
     }
     script.addEventListener("input", paintCount);
     paintCount();
@@ -542,9 +568,7 @@
       mine.setAttribute("aria-pressed", own ? "true" : "false");
       fromTopic.setAttribute("aria-pressed", own ? "false" : "true");
       topicBlock.hidden = own;
-      lineHint.textContent = own
-        ? "Type 1 to 20 words. About 12 fills the take."
-        : "Search a topic, or edit the line yourself.";
+      paintCount();
     }
     mine.addEventListener("click", () => {
       setLineMode(true);
@@ -553,6 +577,32 @@
     fromTopic.addEventListener("click", () => {
       setLineMode(false);
       document.querySelector("#topic").focus();
+    });
+    const secondsBox = document.querySelector("#seconds");
+    secondsBox.addEventListener("input", () => {
+      const n = parseInt(secondsBox.value, 10);
+      if (n >= 5 && n <= 10) ltxSeconds = n;
+      paintCount();
+    });
+    secondsBox.addEventListener("change", () => {
+      let n = parseInt(secondsBox.value, 10);
+      if (!Number.isFinite(n)) n = ltxSeconds;
+      n = Math.min(10, Math.max(5, n));
+      ltxSeconds = n;
+      secondsBox.value = String(n);
+      paintCount();
+    });
+    document.querySelector("#model").addEventListener("change", () => {
+      if (isLtx()) {
+        secondsBox.disabled = false;
+        secondsBox.value = String(ltxSeconds);
+      } else {
+        const n = parseInt(secondsBox.value, 10);
+        if (n >= 5 && n <= 10) ltxSeconds = n;
+        secondsBox.value = "5";
+        secondsBox.disabled = true;
+      }
+      paintCount();
     });
 
     const roomLines = {
@@ -689,7 +739,11 @@
         const response = await fetch("/api/line", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic: document.querySelector("#topic").value })
+          body: JSON.stringify({
+            topic: document.querySelector("#topic").value,
+            model: document.querySelector("#model").value,
+            seconds: takeSeconds()
+          })
         });
         const body = await response.json();
         if (!response.ok) {
@@ -824,6 +878,7 @@
         filename: portraitName,
         portrait: portraitB64,
         model: document.querySelector("#model").value,
+        seconds: takeSeconds(),
         prompt: roomPrompt.value,
         animate: animateBg
       };
@@ -1017,8 +1072,9 @@
         return;
       }
       const countNow = words(script.value);
-      if (countNow < 1 || countNow > 20) {
-        log.textContent = "Use 1 to 20 words. This take is 5 seconds.";
+      const capNow = wordCap();
+      if (countNow < 1 || countNow > capNow) {
+        log.textContent = "Use 1 to " + capNow + " words. This take is " + takeSeconds() + " seconds.";
         log.className = "error";
         setStatus("Check", "bad");
         return;

@@ -2,7 +2,7 @@
 
 A local presenter studio. Type your own line, or write one from a topic. Draw a seated presenter, then render one short talking-head clip. An example, Blue Hour Desk, is in `examples/`.
 
-The default take is LTX 2.5 Distilled Q3: 768×512, 24 fps, 121 frames, about 5 seconds. About 12 words fills it. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine. The model list also includes LTX 2.5 full, Wan 2.2 speech, Wan 2.2 full, and MiniMax H3.
+The default take is LTX 2.5 Distilled Q3: 768×512, 24 fps, about 5 seconds. LTX can be set from 5 to 10 seconds. The word cap is 4 words a second, and Write the line aims for that same length. About 12 words fills a 5 second take. Wan and MiniMax stay at 5 seconds. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine. The model list also includes LTX 2.5 full, Wan 2.2 speech, Wan 2.2 full, and MiniMax H3.
 
 Wan 2.2 speech weights:
 
@@ -10,10 +10,9 @@ Wan 2.2 speech weights:
 - umT5 text encoder (`umt5_xxl_fp8_e4m3fn_scaled.safetensors`)
 - Wan 2.1 VAE (`wan_2.1_vae.safetensors`)
 - wav2vec2 English audio encoder (`wav2vec2_large_english_fp16.safetensors`)
-- LightX2V 4-step LoRA (`wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors`)
 - Kokoro speech (`bf_emma`, `bf_alice`, `bf_isabella`, `bf_lily`)
 
-Sampling is euler, 4 steps, CFG 1, shift 8. On a 16 GB card one chunk takes about 8 minutes. The LightX2V file is the text-to-video lightning LoRA from the [Comfy Wan 2.2 S2V tutorial](https://docs.comfy.org/tutorials/video/wan/wan2-2-s2v). It is what makes the short take finish. Mouth motion is softer than a 20-step sample.
+Sampling is euler, 4 steps, CFG 1, shift 8. This graph has no LightX2V LoRA.
 
 ## What you need
 
@@ -29,7 +28,6 @@ Model files, from [Comfy-Org/Wan_2.2_ComfyUI_Repackaged](https://huggingface.co/
 | `umt5_xxl_fp8_e4m3fn_scaled.safetensors` | `models/text_encoders/` |
 | `wan_2.1_vae.safetensors` | `models/vae/` |
 | `wav2vec2_large_english_fp16.safetensors` | `models/audio_encoders/` |
-| `wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors` | `models/loras/` |
 
 Custom nodes, cloned into `ComfyUI/custom_nodes`, then restart ComfyUI:
 
@@ -73,7 +71,7 @@ job = client.submit(workflow)
 
 `app/server.py` sets `COMFY_BASE_URL` to `http://127.0.0.1:8189` when that variable is empty. Point the SDK at the proxy, not at port 8188.
 
-The video model list has five open-weight choices. LTX 2.5 Distilled Q3 loads `LTX-2.5-Distilled-Q3_K_M.gguf` through `workflow/podcast_ltx.api.json`. That is the 12 GB GGUF, and it is the default. LTX 2.5 full loads `ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors` and `gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors` through `workflow/podcast_ltx_full.api.json` for a larger card. The Q3 text encoder is `gemma412bWithProjLtx25_v10.safetensors` on the GPU, with the LTX 2.5 video and audio VAEs. Comfy unloads that encoder before the video sample. Wan 2.2 speech uses the fp8 model and the LightX2V 4-step LoRA in `workflow/podcast_short.api.json`. Wan 2.2 full uses `wan2.2_s2v_14B_bf16.safetensors` in `workflow/podcast_wan_full.api.json`, 20 steps at CFG 6, with no LoRA. Node 7 is the portrait in every graph. LTX and Wan use node 25 for the script and node 24 for the Kokoro voice. MiniMax H3 uses `workflow/podcast_minimax.api.json`: local image to video, 768 square, 124 frames, the 8-step turbo LoRA, and the spoken line inside the prompt. Its soundtrack is the model's own audio. The diffusion file is `minimax_h3_fl2va_pruned_int8_convrot.safetensors`.
+The video model list has five open-weight choices. LTX 2.5 Distilled Q3 loads `LTX-2.5-Distilled-Q3_K_M.gguf` through `workflow/podcast_ltx.api.json`. That is the 12 GB GGUF, and it is the default. LTX 2.5 full loads `ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors` and `gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors` through `workflow/podcast_ltx_full.api.json` for a larger card. The Q3 text encoder is `gemma412bWithProjLtx25_v10.safetensors` on the GPU, with the LTX 2.5 video and audio VAEs. Comfy unloads that encoder before the video sample. Wan 2.2 speech uses the fp8 model in `workflow/podcast_short.api.json`, 4 steps at CFG 1, with no LoRA. Wan 2.2 full uses `wan2.2_s2v_14B_bf16.safetensors` in `workflow/podcast_wan_full.api.json`, 20 steps at CFG 6, with no LoRA. Node 7 is the portrait in every graph. LTX and Wan use node 25 for the script and node 24 for the Kokoro voice. MiniMax H3 uses `workflow/podcast_minimax.api.json`: local image to video, 768 square, 124 frames, the 8-step turbo LoRA, and the spoken line inside the prompt. Its soundtrack is the model's own audio. The diffusion file is `minimax_h3_fl2va_pruned_int8_convrot.safetensors`.
 
 The finished file is written under `outputs/` and played on the page. From there, YouTube can receive the file through the YouTube Data API with your own Google login. The redirect to register on that client is `http://127.0.0.1:8765/api/publish/youtube/callback`. The client id and secret stay in `.secrets/` on this PC. Rumble and Spotify have no public upload API for a personal channel, so those buttons open Rumble Studio and Spotify for Creators. Show the file opens the output folder so you can drop the mp4 onto those pages. A new YouTube upload is private until you change it. ComfyUI also saves a copy under its own `output/video/` folder with the prefix `Podcast-Video-Maker-Workflow`.
 

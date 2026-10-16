@@ -15,7 +15,13 @@ import xml.etree.ElementTree as ET
 
 OLLAMA = "http://127.0.0.1:11434/api/generate"
 MODEL = "hermes3:8b"
-MAX_WORDS = 20
+
+
+def script_budget(seconds: int) -> tuple[int, int]:
+    """Return the comfortable word count and the hard cap for a take length."""
+    if isinstance(seconds, bool) or not isinstance(seconds, int) or seconds < 5 or seconds > 10:
+        raise ValueError("Pick a length from 5 to 10 seconds.")
+    return round(seconds * 2.4), seconds * 4
 WINDOWS = (
     ("today", " when:1d"),
     ("this week", " when:7d"),
@@ -181,73 +187,109 @@ def _ask(prompt: str) -> str:
     return text
 
 
-def _one_sentence(text: str) -> str:
+def _shape(text: str, limit: int) -> str:
     text = text.strip().strip('"').strip("'").strip()
     text = re.sub(
-        r"^(?:here(?:'s| is)(?: the| a)?(?: sentence| line)?|(?:sentence|line|script))\s*[:\-]\s*",
+        r"^(?:here(?:'s| is)(?: the| a)?(?: sentence| line| script)?|(?:sentence|line|script))\s*[:\-]\s*",
         "",
         text,
         flags=re.I,
     )
     text = re.sub(r"\s+", " ", text).strip()
-    match = re.match(r"(.+?[.!?])(?:\s|$)", text)
-    if match and len(_words(match.group(1))) >= 8:
-        text = match.group(1).strip()
+    if limit <= 20:
+        match = re.match(r"(.+?[.!?])(?:\s|$)", text)
+        if match and len(_words(match.group(1))) >= 8:
+            text = match.group(1).strip()
+    else:
+        parts = re.findall(r"[^.!?]+[.!?]", text)
+        if parts:
+            kept = []
+            count = 0
+            for part in parts:
+                count += len(_words(part))
+                kept.append(part.strip())
+                if len(kept) == 2 or count >= limit:
+                    break
+            text = " ".join(kept)
     if text and text[-1] not in ".!?":
         text = text.rstrip(",;:") + "."
     return text
 
 
-def _fit(text: str, topic: str, source: str) -> str:
-    text = _one_sentence(text)
-    if len(_words(text)) > MAX_WORDS:
-        text = _one_sentence(
+def _ask_line(topic: str, source: str, fill: int, limit: int) -> str:
+    if limit <= 20:
+        shape = f"Write one spoken sentence a presenter can say on camera about that topic. Use {fill} to {limit} words."
+    else:
+        shape = (
+            f"Write a spoken script a presenter can say on camera about that topic. "
+            f"Use {fill} to {limit} words, in one or two sentences."
+        )
+    return (
+        f"The topic is: {topic}\n"
+        f"{shape} Use only facts from the headlines below. "
+        "Ignore a headline that is not about the topic. "
+        "Do not name a newspaper or website. "
+        "Output the words only.\n\n"
+        + source
+    )
+
+
+def _fit(text: str, topic: str, source: str, fill: int, limit: int) -> str:
+    text = _shape(text, limit)
+    if len(_words(text)) > limit:
+        if limit <= 20:
+            rewrite = f"Rewrite this as one spoken sentence of {fill} to {limit} words about that topic."
+        else:
+            rewrite = f"Rewrite this as one or two spoken sentences of {fill} to {limit} words about that topic."
+        text = _shape(
             _ask(
                 f"The topic is: {topic}\n"
-                "Rewrite this as one spoken sentence of 12 to 18 words about that topic. "
-                "Keep only facts from the headlines. Do not name a newspaper or website. "
-                "Output the sentence only.\n\n"
+                f"{rewrite} Keep only facts from the headlines. "
+                "Do not name a newspaper or website. Output the words only.\n\n"
                 f"Headlines:\n{source}\n\nDraft:\n{text}"
-            )
+            ),
+            limit,
         )
     words = _words(text)
-    if len(words) > MAX_WORDS:
-        text = " ".join(words[:MAX_WORDS]).rstrip(",;:") + "."
+    if len(words) > limit:
+        text = " ".join(words[:limit]).rstrip(",;:") + "."
     return text
 
 
-def spoken_line(topic: str) -> dict:
+def spoken_line(topic: str, seconds: int = 5) -> dict:
     cleaned = re.sub(r"\s+", " ", topic).strip()
     if len(cleaned) < 3 or len(cleaned) > 160:
         raise ValueError("Type a short topic, such as news in ukraine war today.")
+    fill, limit = script_budget(seconds)
     found, span = headlines(cleaned)
     source = "\n".join(f"- {title}" for title in found)
-    text = _fit(
-        _ask(
-            f"The topic is: {cleaned}\n"
-            "Write one spoken sentence a presenter can say on camera about that topic. "
-            "Use 12 to 20 words. Use only facts from the headlines below. "
-            "Ignore a headline that is not about the topic. "
-            "Do not name a newspaper or website. "
-            "Output the sentence only.\n\n"
-            + source
-        ),
-        cleaned,
-        source,
-    )
+    text = _fit(_ask(_ask_line(cleaned, source, fill, limit)), cleaned, source, fill, limit)
     need = _content_words(cleaned)
     if need and text and not _overlaps(need, text):
         text = _fit(
             _ask(
                 f"The topic is: {cleaned}\n"
-                "The sentence must be about that topic. "
-                "Write one spoken sentence of 12 to 18 words. "
-                "Use only the headlines below. Output the sentence only.\n\n"
+                + (
+                    f"The words must be about that topic. Write one spoken sentence of {fill} to {limit} words."
+                    if limit <= 20
+                    else f"The words must be about that topic. Write one or two spoken sentences of {fill} to {limit} words."
+                )
+                + " Use only the headlines below. Output the words only.\n\n"
                 + source
             ),
             cleaned,
             source,
+            fill,
+            limit,
         )
     if not text:
         raise RuntimeError("The local model returned an empty line.")
-    return {"script": text, "headlines": found, "model": MODEL, "span": span}
+    return {
+        "script": text,
+        "headlines": found,
+        "model": MODEL,
+        "span": span,
+        "seconds": seconds,
+        "words": limit,
+        "fill": fill,
+    }

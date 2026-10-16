@@ -56,7 +56,7 @@ VIDEO_MODELS = {
     "wan": {
         "file": WORKFLOW,
         "unet": "wan2.2_s2v_14B_fp8_scaled.safetensors",
-        "log": "Queued on the local proxy. A 4-step Wan chunk is about 8 minutes on a 16 GB card.",
+        "log": "Queued. Wan 2.2 speech fp8, 4 steps, no LightX2V LoRA.",
     },
     "wan-full": {
         "file": WAN_FULL,
@@ -78,7 +78,31 @@ OUTPUTS = ROOT / "outputs"
 HOST = "127.0.0.1"
 PORT = 8765
 PROXY = "http://127.0.0.1:8189"
-MAX_WORDS = 20
+def take_seconds(model: str, raw) -> int:
+    if model not in {"ltx-q3", "ltx"}:
+        return 5
+    if isinstance(raw, bool) or isinstance(raw, float):
+        raise ValueError("Pick a length from 5 to 10 seconds.")
+    try:
+        seconds = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("Pick a length from 5 to 10 seconds.") from None
+    if seconds < 5 or seconds > 10:
+        raise ValueError("Pick a length from 5 to 10 seconds.")
+    return seconds
+
+
+def word_cap(seconds: int) -> int:
+    return seconds * 4
+
+
+def ltx_frames(seconds: int) -> int:
+    target = round(seconds * 24)
+    base = ((target - 1) // 8) * 8 + 1
+    higher = base + 8
+    if abs(higher - target) < abs(base - target):
+        return higher
+    return base
 MAX_PORTRAIT_BYTES = 12_000_000
 VOICES = (
     "bf_emma",
@@ -242,6 +266,7 @@ def _run(
     model: str,
     room_note: str,
     animate: bool,
+    seconds: int,
 ):
     _set(status="running", message="Sending the take.", lines=[], video=None, error=None)
     path = None
@@ -289,6 +314,11 @@ def _run(
             workflow.set_input("24", "speaker_name", voice)
             if prompt:
                 workflow.set_input("8", "text", prompt)
+        if model in {"ltx-q3", "ltx"}:
+            frames = ltx_frames(seconds)
+            workflow.set_input("13", "length", frames)
+            workflow.set_input("26", "duration", round(frames / 24, 2))
+            _log(f"LTX length is {seconds} seconds, {frames} frames, up to {word_cap(seconds)} words.")
         if animate:
             _log("The background will move behind the seated presenter.")
         _log(spec["log"])
@@ -475,7 +505,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(409, {"error": "A take is already running."})
                 return
             try:
-                result = spoken_line(topic)
+                seconds = take_seconds(str(payload.get("model") or "ltx-q3"), payload.get("seconds", 5))
+                result = spoken_line(topic, seconds)
             except ValueError as exc:
                 self._json(400, {"error": str(exc)})
                 return
@@ -583,8 +614,14 @@ class Handler(BaseHTTPRequestHandler):
         if voice not in VOICES:
             self._json(400, {"error": "Pick Emma, Alice, Isabella, or Lily."})
             return
-        if _words(script) == 0 or _words(script) > MAX_WORDS:
-            self._json(400, {"error": f"Use 1 to {MAX_WORDS} words. This take is 5 seconds."})
+        try:
+            seconds = take_seconds(model, payload.get("seconds", 5))
+        except ValueError as exc:
+            self._json(400, {"error": str(exc)})
+            return
+        cap = word_cap(seconds)
+        if _words(script) == 0 or _words(script) > cap:
+            self._json(400, {"error": f"Use 1 to {cap} words. This take is {seconds} seconds."})
             return
         try:
             portrait = base64.b64decode(portrait_b64, validate=True)
@@ -611,7 +648,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         threading.Thread(
             target=_run,
-            args=(script, voice, portrait, suffix, background, plate, model, room_note, animate),
+            args=(script, voice, portrait, suffix, background, plate, model, room_note, animate, seconds),
             daemon=True,
         ).start()
         self._json(202, {"status": "running"})
