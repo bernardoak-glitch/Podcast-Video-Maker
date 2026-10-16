@@ -1,6 +1,6 @@
 # Podcast-Video-Maker
 
-A local presenter studio. Type your own line, or write one from a topic. Draw a seated presenter, then render one short talking-head clip. An example, Blue Hour Desk, is in `examples/`.
+A local presenter studio. Type your own line, or write one from a topic. Draw a seated presenter, then render one short talking-head clip. An example clip is `examples/Podcast-Video-Maker-Workflow_00007_.mp4`.
 
 The default take is LTX 2.5 Distilled Q3: 768×512, 24 fps, about 5 seconds. LTX can be set from 5 to 10 seconds. The word cap is 4 words a second, and Write the line aims for that same length. About 12 words fills a 5 second take. Wan and MiniMax stay at 5 seconds. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine. The model list also includes LTX 2.5 full, Wan 2.2 speech, Wan 2.2 full, and MiniMax H3.
 

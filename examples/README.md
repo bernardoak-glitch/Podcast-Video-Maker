@@ -1,19 +1,11 @@
-# Blue Hour Desk
+# Example
 
-One example from this app. Flux 2 Klein drew the empty room, then drew the presenter into that room. No LoRA. The clip, when present, is LTX 2.5 Distilled Q3 with Kokoro and background motion on.
+`Podcast-Video-Maker-Workflow_00007_.mp4` is one take from this app.
 
-The person is fictional. She is 36, a documentary host, with dark brown hair in a low bun, brown eyes, glasses, and a silk blouse under a dark jacket.
+LTX 2.5 Distilled Q3, 768×512, 24 fps, 121 frames, about 5 seconds, with sound. Kokoro voice Emma. Background motion is on. The set behind her is a night sky of fireworks. Flux 2 Klein drew the presenter. No LoRA.
 
-The room prompt:
+The person is fictional.
 
-> A cinematic broadcast hall at blue hour. One long pale stone desk, empty. A wall of soft vertical light, charcoal architecture, a single cool rim light, shallow depth, photoreal.
+The spoken line, 7 words:
 
-The spoken line, 15 words, voice Isabella:
-
-> Blue hour on the desk. The city is quiet, and the story is just beginning.
-
-| File | What it is |
-| --- | --- |
-| `blue-hour-room.png` | Empty studio from Generate background |
-| `blue-hour-desk.png` | Presenter placed in that room |
-| `blue-hour-desk.mp4` | The five-second LTX take, with the room moving behind her |
+> Comfy-ui, LTX, and Wan are amazing.
