@@ -1,10 +1,10 @@
-# Podcast-Video-Maker-Workflow
+# Podcast-Video-Maker
 
-A local presenter: paste a short script, choose a portrait, and get one seated talking-head clip. An example, Blue Hour Desk, is in `examples/`.
+A local presenter studio. Type your own line, or write one from a topic. Draw a seated presenter, then render one short talking-head clip. An example, Blue Hour Desk, is in `examples/`.
 
-The clip is 768×768, 16 fps, and about 5 seconds (one Wan 2.2 S2V chunk of 77 frames). About 12 words fills it. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine.
+The default take is LTX 2.5 Distilled Q3: 768×512, 24 fps, 121 frames, about 5 seconds. About 12 words fills it. The page submits the graph through the Comfy Developer Platform SDK to ComfyUI on this machine. The model list also includes LTX 2.5 full, Wan 2.2 speech, Wan 2.2 full, and MiniMax H3.
 
-Open weights in the graph:
+Wan 2.2 speech weights:
 
 - Wan 2.2 S2V 14B fp8 (`wan2.2_s2v_14B_fp8_scaled.safetensors`)
 - umT5 text encoder (`umt5_xxl_fp8_e4m3fn_scaled.safetensors`)
@@ -64,7 +64,7 @@ Open http://127.0.0.1:8765 . Paste up to 20 words and pick a voice. Emma, Alice,
 
 ```python
 client = Comfy()  # COMFY_BASE_URL=http://127.0.0.1:8189, no API key
-workflow = client.workflows.from_file("workflow/podcast_short.api.json")
+workflow = client.workflows.from_file("workflow/podcast_ltx.api.json")
 workflow.set_input("7", "image", client.assets.from_file(portrait))
 workflow.set_input("25", "text", script)
 workflow.set_input("24", "speaker_name", voice)
@@ -81,6 +81,6 @@ The finished file is written under `outputs/` and played on the page. From there
 
 This repo is the Open Weights Only entry for [Comfy's Open Source Higgsfield challenge](https://comfy.org/open-source-higgsfield/). Signup opened 15 October 2026. Entries close 30 October 2026 at 09:00 PT. The form is https://form.typeform.com/to/V1dSQrkS.
 
-To enter: record a demo of two minutes or less, post it with `#OpenSourceHiggsfield`, and send the form with this repo's link. The demo, the post, and the form are yours to send.
+To enter: record a demo of two minutes or less, post it with `#OpenSourceHiggsfield`, and send the form with this repo's link, https://github.com/bernardoak-glitch/Podcast-Video-Maker. The demo, the post, and the form are yours to send.
 
 License: MIT.
